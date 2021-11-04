@@ -5,7 +5,7 @@
 #include <vector>
 #include <memory>
 #include <variant>
-
+#include <string>
 
 /**
  * Base class for all AST nodes.
@@ -45,6 +45,7 @@ public:
     REF,
     BINARY,
     CALL,
+    INTEGER,
   };
 
 public:
@@ -73,6 +74,24 @@ public:
 private:
   /// Name of the identifier.
   std::string name_;
+};
+
+/**
+ * Expression to represent integers.
+ */
+class IntExpr : public Expr {
+public:
+    IntExpr(const std::uint64_t value)
+        : Expr(Kind::INTEGER)
+        , value_(value)
+    {
+    }
+
+    const std::uint64_t GetName() const { return value_; }
+
+private:
+    /// Name of the identifier.
+    std::uint64_t value_;
 };
 
 /**

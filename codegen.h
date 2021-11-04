@@ -155,6 +155,8 @@ private:
   void EmitJumpFalse(Label label);
   /// Emit an unconditional jump.
   void EmitJump(Label label);
+  /// Emit an integer
+  void EmitInt(int64_t value);
 
   /// Emit some bytes of code.
   template<typename T>

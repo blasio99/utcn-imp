@@ -355,3 +355,11 @@ void Codegen::EmitJump(Label label)
   Emit<Opcode>(Opcode::JUMP);
   EmitFixup(label);
 }
+
+void Codegen::EmitInt(int64_t value)
+{
+    assert(depth_ > 0 && "no elements on stack");
+    depth_ -= 1;
+    Emit<Opcode>(Opcode::PUSH_INT);
+    Emit<int64_t>(value);
+}

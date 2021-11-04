@@ -17,6 +17,10 @@ Token::Token(const Token &that)
       value_.StringValue = new std::string(*that.value_.StringValue);
       break;
     }
+    case Kind::INT: {
+        value_.IntValue = std::uint64_t(that.value_.IntValue);
+        break;
+    }
     default: {
       break;
     }
@@ -43,6 +47,10 @@ Token &Token::operator=(const Token &that)
     case Kind::IDENT: {
       value_.StringValue = new std::string(*that.value_.StringValue);
       break;
+    }
+    case Kind::INT: {
+        value_.IntValue = std::uint64_t(that.value_.IntValue);
+        break;
     }
     default: {
       break;
@@ -82,15 +90,18 @@ Token Token::String(const Location &l, const std::string &str)
   return tk;
 }
 
+Token Token::Integer(const Location& l, const std::uint64_t value)
+{
+    Token tk(l, Kind::INT);
+    tk.value_.IntValue = std::uint64_t(value);
+    return tk;
+}
+
 // -----------------------------------------------------------------------------
 void Token::Print(std::ostream &os) const
 {
   os << kind_;
   switch (kind_) {
-    case Kind::INT: {
-      os << "(" << value_.IntValue << ")";
-      break;
-    }
     case Kind::STRING: {
       os << "(\"" << *value_.StringValue << "\")";
       break;
@@ -98,6 +109,10 @@ void Token::Print(std::ostream &os) const
     case Kind::IDENT: {
       os << "(" << *value_.StringValue << ")";
       break;
+    }
+    case Kind::INT: {
+        os << "(" << value_.IntValue << ")";
+        break;
     }
     default: {
       break;
@@ -122,9 +137,9 @@ std::ostream &operator<<(std::ostream &os, const Token::Kind kind)
     case Token::Kind::COMMA: return os << ",";
     case Token::Kind::PLUS: return os << "+";
     case Token::Kind::END: return os << "END";
-    case Token::Kind::INT: return os << "INT";
     case Token::Kind::STRING: return os << "STRING";
     case Token::Kind::IDENT: return os << "IDENT";
+    case Token::Kind::INT: return os << "INT";
   }
   return os;
 }
@@ -148,6 +163,9 @@ Lexer::Lexer(const std::string &name)
   : name_(name)
   , is_(name)
 {
+  if (!is_.is_open() || is_.eof()) {
+    throw std::runtime_error("Cannot open " + name);
+  }
   NextChar();
   Next();
 }
@@ -169,7 +187,7 @@ const Token &Lexer::Next()
 {
   // Skip all whitespace until a valid token.
   while (isspace(chr_)) { NextChar(); }
-
+  
   // Return a token based on the character.
   auto loc = GetLocation();
   switch (chr_) {
@@ -197,6 +215,14 @@ const Token &Lexer::Next()
       return tk_ = Token::String(loc, word);
     }
     default: {
+        if (isdigit(chr_)) {
+            std::string word;
+            do {
+                word.push_back(chr_);
+                NextChar();
+            } while (isdigit(chr_));
+            return tk_ = Token::Integer(loc, (uint64_t)atoi(word.c_str()));
+      }
       if (IsIdentStart(chr_)) {
         std::string word;
         do {
@@ -225,7 +251,7 @@ void Lexer::NextChar()
     } else {
       charNo_++;
     }
-    is_.get(chr_);
+    chr_ = is_.get();
   }
 }
 
