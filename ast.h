@@ -5,12 +5,15 @@
 #include <vector>
 #include <memory>
 #include <variant>
+#include <iostream>
 #include <string>
 
 /**
  * Base class for all AST nodes.
  */
 class Node {
+    public:
+    virtual void print(std::ostream& os) const {};
 };
 
 /**
@@ -18,15 +21,19 @@ class Node {
  */
 class Stmt : public Node {
 public:
-  enum class Kind {
-    BLOCK,
-    WHILE,
-    EXPR,
-    RETURN
-  };
+    enum class Kind
+    {
+        BLOCK,
+        WHILE,
+        EXPR,
+        RETURN,
+        VARDECL,
+        IF
+    };
 
 public:
-  Kind GetKind() const { return kind_; }
+    Kind GetKind() const { return kind_; }
+    virtual void print(std::ostream os) const {};
 
 protected:
   Stmt(Kind kind) : kind_(kind) { }
@@ -34,19 +41,25 @@ protected:
 private:
   /// Kind of the statement.
   Kind kind_;
+    std::vector<std::string> kindnames = {"block", "while", "expr", "return", "if"};
 };
 
 /**
  * Base class for all expressions.
  */
-class Expr : public Node {
+class Expr : public Node
+{
 public:
-  enum class Kind {
-    REF,
-    BINARY,
-    CALL,
-    INTEGER,
-  };
+    enum class Kind
+    {
+        REF,
+        BINARY,
+        UNARY,
+        CALL,
+        INTEGER,
+        BOOL, 
+        STRING
+    };
 
 public:
   Expr(Kind kind) : kind_(kind) {}
@@ -61,53 +74,100 @@ private:
 /**
  * Expression referring to a named value.
  */
-class RefExpr : public Expr {
+class IntExpr : public Expr
+{
 public:
-  RefExpr(const std::string &name)
-    : Expr(Kind::REF)
-    , name_(name)
-  {
-  }
+    IntExpr(const uint64_t val)
+        : Expr(Kind::INTEGER), val_(val)
+    {
+    }
 
-  const std::string &GetName() const { return name_; }
+    const uint64_t GetValue() const { return val_; }
 
 private:
-  /// Name of the identifier.
-  std::string name_;
+    /// Value of the the integer.
+    uint64_t val_;
+};
+
+/**
+ * Boolean literal expression (true | false).
+ */
+class BoolExpr : public Expr
+{
+public:
+    BoolExpr(const bool val)
+        : Expr(Kind::BOOL), val_(val)
+    {
+    }
+
+    const bool GetValue() const { return val_; }
+
+private:
+    /// Value of the the boolean.
+    bool val_;
+};
+
+/**
+ * String literal expression
+ */
+class StringExpr : public Expr
+{
+public:
+    StringExpr(const std::string_view& string)
+        : Expr(Kind::STRING), str_(string)
+    {
+    }
+
+    const std::string_view& GetString() const { return str_; }
+
+private:
+    /// Value of the the boolean.
+    std::string_view str_;
 };
 
 /**
  * Expression to represent integers.
  */
-class IntExpr : public Expr {
+class RefExpr : public Expr
+{
 public:
-    IntExpr(const std::uint64_t value)
-        : Expr(Kind::INTEGER)
-        , value_(value)
+    RefExpr(const std::string &name)
+        : Expr(Kind::REF), name_(name)
     {
     }
 
-    const std::uint64_t GetName() const { return value_; }
+    const std::string &GetName() const { return name_; }
 
 private:
     /// Name of the identifier.
-    std::uint64_t value_;
+    std::string name_;
 };
 
 /**
  * Binary expression.
  */
-class BinaryExpr : public Expr {
+class BinaryExpr : public Expr
+{
 public:
-  /// Enumeration of binary operators.
-  enum class Kind {
-    ADD
-  };
+    /// Enumeration of binary operators.
+    enum class Kind
+    {
+        EQ,
+        NEQ,
+        MUL,
+        DIV, 
+        MOD,
+        LE,
+        GR,
+        LEQ,
+        GREQ,
+        ADD,
+        SUB
+    };
 
 public:
   BinaryExpr(Kind kind, std::shared_ptr<Expr> lhs, std::shared_ptr<Expr> rhs)
-    : Expr(Expr::Kind::BINARY)
-    , kind_(kind), lhs_(lhs), rhs_(rhs)
+        : Expr(Expr::Kind::BINARY), kind_(kind), lhs_(lhs), rhs_(rhs)
   {
   }
 
@@ -126,9 +186,41 @@ private:
 };
 
 /**
+ * Unary expression.
+ */
+class UnaryExpr : public Expr
+{
+public:
+    /// Enumeration of unary operators.
+    enum class Kind
+    {
+        NOT,
+        NEG
+    };
+
+public:
+    UnaryExpr(Kind kind, std::shared_ptr<Expr> operand)
+        : Expr(Expr::Kind::UNARY), kind_(kind), operand_(operand)
+    {
+    }
+
+    Kind GetKind() const { return kind_; }
+
+    const Expr &GetOperand() const { return *operand_; }
+
+private:
+    /// Operator kind.
+    Kind kind_;
+    /// The (only) operand.
+    std::shared_ptr<Expr> operand_;
+
+};
+
+/**
  * Call expression.
  */
-class CallExpr : public Expr {
+class CallExpr : public Expr
+{
 public:
   using ArgList = std::vector<std::shared_ptr<Expr>>;
 
@@ -136,11 +228,9 @@ public:
   CallExpr(
       std::shared_ptr<Expr> callee,
       std::vector<std::shared_ptr<Expr>> &&args)
-    : Expr(Kind::CALL)
-    , callee_(callee)
-    , args_(std::move(args))
-  {
-  }
+        : Expr(Kind::CALL), callee_(callee), args_(std::move(args))
+    {
+    }
 
   const Expr &GetCallee() const { return *callee_; }
 
@@ -167,8 +257,15 @@ public:
   {
   }
 
-  BlockList::const_iterator begin() const { return body_.begin(); }
-  BlockList::const_iterator end() const { return body_.end(); }
+    BlockList::const_iterator begin() const { return body_.begin(); }
+    BlockList::const_iterator end() const { return body_.end(); }
+    void print(std::ostream& os) const override {
+        os << "[BLOCK STATEMENT] {";
+        for (auto& it : body_) {
+            os << it << std::endl;
+        }
+        os << '}\n';
+    }
 
 private:
   /// Statements in the body of the block.
@@ -180,11 +277,10 @@ private:
  */
 class ExprStmt final : public Stmt {
 public:
-  ExprStmt(std::shared_ptr<Expr> expr)
-    : Stmt(Kind::EXPR)
-    , expr_(expr)
-  {
-  }
+    ExprStmt(std::shared_ptr<Expr> expr)
+        : Stmt(Kind::EXPR), expr_(expr)
+    {
+    }
 
   const Expr &GetExpr() const { return *expr_; }
 
@@ -212,6 +308,35 @@ private:
 };
 
 /**
+ * If statement.
+ * if (<expr>) <stmt> else <stmt>
+ */
+class IfStmt final : public Stmt
+{
+public:
+    IfStmt(std::shared_ptr<Expr> cond, std::shared_ptr<Stmt> ifTrue, std::shared_ptr<Stmt> ifFalse)
+        : Stmt(Kind::IF), cond_(cond), tstmt_(ifTrue), fstmt_(ifFalse)
+    {
+    }
+
+    const Stmt &GetTrueBranchStmt() const { return *tstmt_; }
+    const Stmt &GetFalseBranchStmt() const { return *fstmt_; }
+    const Expr &GetCondition() const { return *cond_; }
+    void print(std::ostream& os) const override {
+        os << "[IF STATEMENT] cond : " << cond_ << std::endl;
+        os << "if true : " << tstmt_ << std::endl;
+        os << "if true : " << fstmt_ << std::endl;
+    }
+
+private:
+    /// statement to execute if condition is met
+    std::shared_ptr<Stmt> tstmt_;
+    /// statement to execute if condition is not met
+    std::shared_ptr<Stmt> fstmt_;
+    std::shared_ptr<Expr> cond_;
+};
+
+/**
  * While statement.
  *
  * while (<cond>) <stmt>
@@ -228,11 +353,45 @@ public:
   const Expr &GetCond() const { return *cond_; }
   const Stmt &GetStmt() const { return *stmt_; }
 
+    void print(std::ostream& os) const override {
+        os << "[WHILE STATEMENT] cond : " << cond_ << std::endl;
+        os << "do: : " << stmt_ << std::endl;
+    }
+
 private:
   /// Condition for the loop.
   std::shared_ptr<Expr> cond_;
   /// Expression to be executed in the loop body.
   std::shared_ptr<Stmt> stmt_;
+};
+
+/**
+ * Variable declaration statement.
+ *
+ * let <ident> : <type> = <expr>;
+ */
+class VarDeclStmt final : public Stmt
+{
+public:
+    VarDeclStmt(const std::string& name, const std::string& type, std::shared_ptr<Expr> expr)
+        : Stmt(Kind::VARDECL), name_(name), type_(type), expr_(expr)
+    {
+    }
+
+    const std::string& GetName() const { return name_; }
+    const std::string& GetType() const { return type_; }
+    const Expr& GetExpression() const { return *expr_; }
+
+    void print(std::ostream& os) const override {
+        os << "[VARIABLE DECLARATION] name_ : " << name_ << std::endl;
+        os << "type : " << type_ << std::endl;
+    }
+
+private:
+
+    std::string name_;
+    std::string type_;
+    std::shared_ptr<Expr> expr_;
 };
 
 /**
@@ -289,6 +448,14 @@ public:
 
   const std::string &GetPrimitiveName() const { return primitive_; }
 
+    void print(std::ostream& os) const override {
+        os << "[PROTO DECL] " << GetName() << '(' ;
+        for (auto& it : ArgList()) {
+            os << it.first << ":" << it.second << ", ";
+        }
+        os << ')';
+    }
+
 private:
   const std::string primitive_;
 };
@@ -311,6 +478,14 @@ public:
   }
 
   const BlockStmt &GetBody() const { return *body_; }
+
+    void print(std::ostream& os) const override {
+        os << "[FUNC DECL] " << GetName() << '(' ;
+        for (auto& it : ArgList()) {
+            os << it.first << ":" << it.second << ", ";
+        }
+        os << ')';
+    }
 
 private:
   std::shared_ptr<BlockStmt> body_;
@@ -337,9 +512,20 @@ public:
   {
   }
 
-  BlockList::const_iterator begin() const { return body_.begin(); }
-  BlockList::const_iterator end() const { return body_.end(); }
+    BlockList::const_iterator begin() const { return body_.begin(); }
+    BlockList::const_iterator end() const { return body_.end(); }
+    void print() {
+        std::cout << "[Top Level Module]\n";
+        for(auto& it : body_) {
+            std::visit([](auto&& arg) {std::cout << arg;}, it);
+        }
+    }
 
 private:
   BlockList body_;
 };
+
+inline std::ostream &operator<<(std::ostream &os, const std::shared_ptr<Node> node) {
+    node->print(os);
+    return os;
+}

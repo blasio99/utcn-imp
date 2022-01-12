@@ -128,6 +128,7 @@ private:
   /// Lowers a call expression.
   void LowerCallExpr(const Scope &scope, const CallExpr &expr);
 
+    void LowerIntegerExpr(const Scope &scope, const IntExpr &val);
   /// Lowers a function declaration.
   void LowerFuncDecl(const Scope &scope, const FuncDecl &funcDecl);
 
@@ -148,7 +149,7 @@ private:
   /// Emit a return instruction.
   void EmitReturn();
   /// Emit an add opcode.
-  void EmitAdd();
+  void EmitAddOrSub(Opcode opcode);
   /// Emit a label.
   void EmitLabel(Label label);
   /// Emit a conditional jump.
@@ -156,7 +157,7 @@ private:
   /// Emit an unconditional jump.
   void EmitJump(Label label);
   /// Emit an integer
-  void EmitInt(int64_t value);
+  void EmitInt(uint64_t val);
 
   /// Emit some bytes of code.
   template<typename T>

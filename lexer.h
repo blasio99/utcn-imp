@@ -6,7 +6,7 @@
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
-
+#include <cstdint>
 
 /**
  * Represents a location in a source file.
@@ -32,27 +32,52 @@ inline std::ostream &operator<<(std::ostream &os, const Location &loc)
  */
 class Token final {
 public:
-  enum class Kind {
-    // Keywords.
-    FUNC,
-    RETURN,
-    WHILE,
-    // Symbols.
-    LPAREN,
-    RPAREN,
-    LBRACE,
-    RBRACE,
-    COLON,
-    SEMI,
-    EQUAL,
-    COMMA,
-    PLUS,
-    // Complex tokens.
-    INT,
-    STRING,
-    IDENT,
-    END,
-  };
+    enum class Kind
+    {
+        // Keywords.
+        FUNC,
+        RETURN,
+        WHILE,
+        LET,
+        IF,
+        ELSE,
+        TRUE,
+        FALSE,
+
+        // Single Symbols.
+        LPAREN, // (
+        RPAREN, // )
+        LBRACE, // {
+        RBRACE, // }
+        COLON,  // :
+        SEMI,   // ;
+        EQ,     // =
+        COMMA,  // ,
+        PLUS,   // +
+        MINUS,  // -
+        MOD,    // %
+        BANG,   // !
+        STAR,   // *
+        SLASH,  // /
+        LE,     // <
+        GR,     // >
+
+        // Double Symbols
+        EQEQ,   // ==
+        NEQ,  // !=
+        LEQ,    // <=
+        GREQ,   // >=
+        INCR,   // ++
+        DECR,   // --
+
+        // Literals
+        INT,
+        STRING,
+        IDENT,
+
+        //EOF
+        END,
+    };
 
 public:
   /// Copy constructor.
@@ -87,33 +112,62 @@ public:
     return *value_.StringValue;
   }
 
-  /// Return the string value.
-  std::uint64_t GetInteger() const
-  {
-      assert(Is(Kind::INT) && "not an identifier");
-      return value_.IntValue;
-  }
+    /// Return the string value.
+    uint64_t GetInteger() const
+    {
+        assert(Is(Kind::INT) && "not an integer");
+        return value_.IntValue;
+    }
 
   /// Copy operator.
   Token &operator=(const Token &that);
 
-  // Helpers to build tokens.
-  static Token End(const Location &l) { return Token(l, Kind::END); }
-  static Token LParen(const Location &l) { return Token(l, Kind::LPAREN); }
-  static Token RParen(const Location &l) { return Token(l, Kind::RPAREN); }
-  static Token LBrace(const Location &l) { return Token(l, Kind::LBRACE); }
-  static Token RBrace(const Location &l) { return Token(l, Kind::RBRACE); }
-  static Token Colon(const Location &l) { return Token(l, Kind::COLON); }
-  static Token Semi(const Location &l) { return Token(l, Kind::SEMI); }
-  static Token Equal(const Location &l) { return Token(l, Kind::EQUAL); }
-  static Token Plus(const Location &l) { return Token(l, Kind::PLUS); }
-  static Token Comma(const Location &l) { return Token(l, Kind::COMMA); }
-  static Token Func(const Location &l) { return Token(l, Kind::FUNC); }
-  static Token Return(const Location &l) { return Token(l, Kind::RETURN); }
-  static Token While(const Location &l) { return Token(l, Kind::WHILE); }
-  static Token Ident(const Location &l, const std::string &str);
-  static Token String(const Location &l, const std::string &str);
-  static Token Integer(const Location& l, const std::uint64_t value);
+    // Helpers to build tokens.
+    static Token End(const Location &l) { return Token(l, Kind::END); }
+
+    static Token LParen(const Location &l) { return Token(l, Kind::LPAREN); }
+    static Token RParen(const Location &l) { return Token(l, Kind::RPAREN); }
+    static Token LBrace(const Location &l) { return Token(l, Kind::LBRACE); }
+    static Token RBrace(const Location &l) { return Token(l, Kind::RBRACE); }
+
+    static Token Colon(const Location &l) { return Token(l, Kind::COLON); }
+    static Token Comma(const Location &l) { return Token(l, Kind::COMMA); }
+    static Token Semi(const Location &l) { return Token(l, Kind::SEMI); }
+
+    static Token Equal(const Location &l) { return Token(l, Kind::EQ); }
+
+    static Token DEqual(const Location &l) { return Token(l, Kind::EQEQ); }
+    static Token GrEqual(const Location &l) { return Token(l, Kind::GREQ); }
+    static Token LeEqual(const Location &l) { return Token(l, Kind::LEQ); }
+    static Token NotEqual(const Location &l) { return Token(l, Kind::NEQ); }
+    static Token Less(const Location &l) { return Token(l, Kind::LE); }
+    static Token Greater(const Location &l) { return Token(l, Kind::GR); }
+
+    static Token Plus(const Location &l) { return Token(l, Kind::PLUS); }
+    static Token Incr(const Location &l) { return Token(l, Kind::INCR); }
+
+    static Token Minus(const Location &l) { return Token(l, Kind::MINUS); }
+    static Token Decr(const Location &l) { return Token(l, Kind::DECR); }
+
+    static Token Star(const Location &l) { return Token(l, Kind::STAR); }
+    static Token Slash(const Location &l) { return Token(l, Kind::SLASH); }
+    static Token Mod(const Location &l) { return Token(l, Kind::MOD); }
+    static Token Bang(const Location &l) { return Token(l, Kind::BANG); }
+
+    static Token Func(const Location &l) { return Token(l, Kind::FUNC); }
+    static Token Return(const Location &l) { return Token(l, Kind::RETURN); }
+
+    static Token Let(const Location &l) { return Token(l, Kind::LET); }
+
+    static Token If(const Location &l) { return Token(l, Kind::IF); }
+    static Token Else(const Location &l) { return Token(l, Kind::ELSE); }
+    static Token While(const Location &l) { return Token(l, Kind::WHILE); }
+    static Token True(const Location &l) { return Token(l, Kind::TRUE); }
+    static Token False(const Location &l) { return Token(l, Kind::FALSE); }
+
+    static Token Ident(const Location &l, const std::string &str);
+    static Token String(const Location &l, const std::string &str);
+    static Token Integer(const Location &l, const uint64_t);
 
   /// Print the token to a stream.
   void Print(std::ostream &os) const;

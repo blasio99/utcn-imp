@@ -177,7 +177,11 @@ void Codegen::LowerExpr(const Scope &scope, const Expr &expr)
     case Expr::Kind::CALL: {
       return LowerCallExpr(scope, static_cast<const CallExpr &>(expr));
     }
-  }
+    case Expr::Kind::INTEGER:
+    {
+        return LowerIntegerExpr(scope, static_cast<const IntExpr &>(expr));
+    }
+    }
 }
 
 // -----------------------------------------------------------------------------
@@ -203,13 +207,16 @@ void Codegen::LowerRefExpr(const Scope &scope, const RefExpr &expr)
 // -----------------------------------------------------------------------------
 void Codegen::LowerBinaryExpr(const Scope &scope, const BinaryExpr &binary)
 {
-  LowerExpr(scope, binary.GetLHS());
-  LowerExpr(scope, binary.GetRHS());
-  switch (binary.GetKind()) {
-    case BinaryExpr::Kind::ADD: {
-      return EmitAdd();
+    LowerExpr(scope, binary.GetLHS());
+    LowerExpr(scope, binary.GetRHS());
+    switch (binary.GetKind())
+    {
+    case BinaryExpr::Kind::ADD:
+        return EmitAddOrSub(Opcode::ADD);
+    case BinaryExpr::Kind::SUB:
+        return EmitAddOrSub(Opcode::SUB);
+    //add mul and division later
     }
-  }
 }
 
 // -----------------------------------------------------------------------------
@@ -221,6 +228,13 @@ void Codegen::LowerCallExpr(const Scope &scope, const CallExpr &call)
   LowerExpr(scope, call.GetCallee());
   EmitCall(call.arg_size());
   depth_ -= call.arg_size();
+}
+
+// -----------------------------------------------------------------------------
+void Codegen::LowerIntegerExpr(const Scope &scope, const IntExpr &val)
+{
+    EmitInt(val.GetValue());
+    //TODO decrease depth_?
 }
 
 // -----------------------------------------------------------------------------
@@ -333,11 +347,11 @@ void Codegen::EmitReturn()
 }
 
 // -----------------------------------------------------------------------------
-void Codegen::EmitAdd()
+void Codegen::EmitAddOrSub(Opcode opcode)
 {
   assert(depth_ > 0 && "no elements on stack");
   depth_ -= 1;
-  Emit<Opcode>(Opcode::ADD);
+    Emit<Opcode>(opcode);
 }
 
 // -----------------------------------------------------------------------------
@@ -356,10 +370,9 @@ void Codegen::EmitJump(Label label)
   EmitFixup(label);
 }
 
-void Codegen::EmitInt(int64_t value)
+void Codegen::EmitInt(uint64_t val)
 {
-    assert(depth_ > 0 && "no elements on stack");
-    depth_ -= 1;
+    depth_ += 1;
     Emit<Opcode>(Opcode::PUSH_INT);
-    Emit<int64_t>(value);
+    Emit<int64_t>(val);
 }

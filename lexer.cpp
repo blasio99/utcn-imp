@@ -3,7 +3,7 @@
 #include <sstream>
 
 #include "lexer.h"
-
+#include <limits>
 
 
 // -----------------------------------------------------------------------------
@@ -18,7 +18,7 @@ Token::Token(const Token &that)
       break;
     }
     case Kind::INT: {
-        value_.IntValue = std::uint64_t(that.value_.IntValue);
+        value_.IntValue = that.value_.IntValue;
         break;
     }
     default: {
@@ -49,7 +49,7 @@ Token &Token::operator=(const Token &that)
       break;
     }
     case Kind::INT: {
-        value_.IntValue = std::uint64_t(that.value_.IntValue);
+        value_.IntValue = that.value_.IntValue;
         break;
     }
     default: {
@@ -90,10 +90,10 @@ Token Token::String(const Location &l, const std::string &str)
   return tk;
 }
 
-Token Token::Integer(const Location& l, const std::uint64_t value)
+Token Token::Integer(const Location &l, const uint64_t intVal)
 {
     Token tk(l, Kind::INT);
-    tk.value_.IntValue = std::uint64_t(value);
+    tk.value_.IntValue = intVal;
     return tk;
 }
 
@@ -123,25 +123,78 @@ void Token::Print(std::ostream &os) const
 // -----------------------------------------------------------------------------
 std::ostream &operator<<(std::ostream &os, const Token::Kind kind)
 {
-  switch (kind) {
-    case Token::Kind::FUNC: return os << "func";
-    case Token::Kind::RETURN: return os << "return";
-    case Token::Kind::WHILE: return os << "while";
-    case Token::Kind::LPAREN: return os << "(";
-    case Token::Kind::RPAREN: return os << ")";
-    case Token::Kind::LBRACE: return os << "{";
-    case Token::Kind::RBRACE: return os << "}";
-    case Token::Kind::COLON: return os << ":";
-    case Token::Kind::SEMI: return os << ";";
-    case Token::Kind::EQUAL: return os << "=";
-    case Token::Kind::COMMA: return os << ",";
-    case Token::Kind::PLUS: return os << "+";
-    case Token::Kind::END: return os << "END";
-    case Token::Kind::STRING: return os << "STRING";
-    case Token::Kind::IDENT: return os << "IDENT";
-    case Token::Kind::INT: return os << "INT";
-  }
-  return os;
+    switch (kind)
+    {
+    case Token::Kind::FUNC:
+        return os << "func";
+    case Token::Kind::RETURN:
+        return os << "return";
+    case Token::Kind::WHILE:
+        return os << "while";
+    case Token::Kind::LET:
+        return os << "let";
+    case Token::Kind::IF:
+        return os << "if";
+    case Token::Kind::ELSE:
+        return os << "else";
+    case Token::Kind::TRUE:
+        return os << "true";
+    case Token::Kind::FALSE:
+        return os << "false";
+    case Token::Kind::LPAREN:
+        return os << "(";
+    case Token::Kind::RPAREN:
+        return os << ")";
+    case Token::Kind::LBRACE:
+        return os << "{";
+    case Token::Kind::RBRACE:
+        return os << "}";
+    case Token::Kind::COLON:
+        return os << ":";
+    case Token::Kind::SEMI:
+        return os << ";";
+    case Token::Kind::BANG:
+        return os << "!";
+    case Token::Kind::EQ:
+        return os << "=";
+    case Token::Kind::LE:
+        return os << "<";
+    case Token::Kind::GR:
+        return os << ">";
+    case Token::Kind::EQEQ:
+        return os << "==";
+    case Token::Kind::GREQ:
+        return os << ">=";
+    case Token::Kind::LEQ:
+        return os << "<=";
+    case Token::Kind::NEQ:
+        return os << "!=";
+    case Token::Kind::COMMA:
+        return os << ",";
+    case Token::Kind::PLUS:
+        return os << "+";
+    case Token::Kind::INCR:
+        return os << "++";
+    case Token::Kind::MINUS:
+        return os << "-";
+    case Token::Kind::DECR:
+        return os << "--";
+    case Token::Kind::STAR:
+        return os << "*";
+    case Token::Kind::SLASH:
+        return os << "/";
+    case Token::Kind::MOD:
+        return os << "%";
+    case Token::Kind::END:
+        return os << "END";
+    case Token::Kind::INT:
+        return os << "INT";
+    case Token::Kind::STRING:
+        return os << "STRING";
+    case Token::Kind::IDENT:
+        return os << "IDENT";
+    }
+    return os;
 }
 
 // -----------------------------------------------------------------------------
@@ -160,14 +213,10 @@ LexerError::LexerError(const Location &loc, const std::string &msg)
 
 // -----------------------------------------------------------------------------
 Lexer::Lexer(const std::string &name)
-  : name_(name)
-  , is_(name)
+    : name_(name), is_(name)
 {
-  if (!is_.is_open() || is_.eof()) {
-    throw std::runtime_error("Cannot open " + name);
-  }
-  NextChar();
-  Next();
+    NextChar();
+    Next();
 }
 
 // -----------------------------------------------------------------------------
@@ -185,56 +234,129 @@ static bool IsIdentLetter(char chr)
 // -----------------------------------------------------------------------------
 const Token &Lexer::Next()
 {
-  // Skip all whitespace until a valid token.
-  while (isspace(chr_)) { NextChar(); }
-  
-  // Return a token based on the character.
-  auto loc = GetLocation();
-  switch (chr_) {
-    case '\0': return tk_ = Token::End(loc);
-    case '(': return NextChar(), tk_ = Token::LParen(loc);
-    case ')': return NextChar(), tk_ = Token::RParen(loc);
-    case '{': return NextChar(), tk_ = Token::LBrace(loc);
-    case '}': return NextChar(), tk_ = Token::RBrace(loc);
-    case ':': return NextChar(), tk_ = Token::Colon(loc);
-    case ';': return NextChar(), tk_ = Token::Semi(loc);
-    case '=': return NextChar(), tk_ = Token::Equal(loc);
-    case '+': return NextChar(), tk_ = Token::Plus(loc);
-    case ',': return NextChar(), tk_ = Token::Comma(loc);
-    case '"': {
-      std::string word;
-      NextChar();
-      while (chr_ != '"') {
-        word.push_back(chr_);
+    // Skip all whitespace until a valid token.
+    while (isspace(chr_))
+    {
         NextChar();
-        if (chr_ == '\0') {
-          Error("string not terminated");
-        }
-      }
-      NextChar();
-      return tk_ = Token::String(loc, word);
     }
-    default: {
-        if (isdigit(chr_)) {
+
+    // Return a token based on the character.
+    auto loc = GetLocation();
+    switch (chr_)
+    {
+    case '\0':
+        return tk_ = Token::End(loc);
+    case '(':
+        return NextChar(), tk_ = Token::LParen(loc);
+    case ')':
+        return NextChar(), tk_ = Token::RParen(loc);
+    case '{':
+        return NextChar(), tk_ = Token::LBrace(loc);
+    case '}':
+        return NextChar(), tk_ = Token::RBrace(loc);
+    case ':':
+        return NextChar(), tk_ = Token::Colon(loc);
+    case ';':
+        return NextChar(), tk_ = Token::Semi(loc);
+    case '*':
+        return NextChar(), tk_ = Token::Star(loc);
+    case '/':
+        return NextChar(), tk_ = Token::Slash(loc);
+    case '%':
+        return NextChar(), tk_ = Token::Mod(loc);
+    case '!':
+        return NextChar(), tk_ = Token::Bang(loc);
+    case '<':
+        return NextChar(), tk_ = Token::Less(loc);
+    case '>':
+        return NextChar(), tk_ = Token::Greater(loc);
+    case '=':
+        NextChar();
+        if (chr_ == '=')
+            return NextChar(), tk_ = Token::DEqual(loc);
+        return tk_ = Token::Equal(loc);
+
+    case '+':
+        NextChar();
+        if (chr_ == '+')
+            return NextChar(), tk_ = Token::Incr(loc);
+        return tk_ = Token::Plus(loc);
+
+    case '-':
+        NextChar();
+        if (chr_ == '-')
+            return NextChar(), tk_ = Token::Decr(loc);
+        return tk_ = Token::Minus(loc);
+
+    case ',':
+        return NextChar(), tk_ = Token::Comma(loc);
+    case '"':
+    {
+        std::string word;
+        NextChar();
+        while (chr_ != '"')
+        {
+            word.push_back(chr_);
+            NextChar();
+            if (chr_ == '\0')
+            {
+                Error("string not terminated");
+            }
+        }
+        NextChar();
+        return tk_ = Token::String(loc, word);
+    }
+    default:
+    {
+        if (isdigit(chr_))
+        {
             std::string word;
-            do {
+            do
+            {
                 word.push_back(chr_);
                 NextChar();
             } while (isdigit(chr_));
-            return tk_ = Token::Integer(loc, (uint64_t)atoi(word.c_str()));
-      }
-      if (IsIdentStart(chr_)) {
-        std::string word;
-        do {
-          word.push_back(chr_);
-          NextChar();
-        } while (IsIdentLetter(chr_));
-        if (word == "func") return tk_ = Token::Func(loc);
-        if (word == "return") return tk_ = Token::Return(loc);
-        if (word == "while") return tk_ = Token::While(loc);
-        return tk_ = Token::Ident(loc, word);
-      }
-      Error("unknown character '" + std::string(1, chr_) + "'");
+            uint64_t val;
+            //probably a better approach would be to build integer right away instead of parsing it twice
+            try
+            {
+                val = std::stod(word);
+            }
+            catch (std::out_of_range e)
+            { 
+                //invalid argument exception should not occur if tokenizer logic is solid
+                Error("Integer literal out of range!\n");
+            }
+
+            return tk_ = Token::Integer(loc, val);
+        }
+        if (IsIdentStart(chr_))
+        {
+            std::string word;
+            do
+            {
+                word.push_back(chr_);
+                NextChar();
+            } while (IsIdentLetter(chr_));
+            if (word == "func")
+                return tk_ = Token::Func(loc);
+            if (word == "return")
+                return tk_ = Token::Return(loc);
+            if (word == "while")
+                return tk_ = Token::While(loc);
+            if (word == "let")
+                return tk_ = Token::Let(loc);
+            if (word == "if")
+                return tk_ = Token::If(loc);
+            if (word == "else")
+                return tk_ = Token::Else(loc);
+            if (word == "true")
+                return tk_ = Token::True(loc);
+            if (word == "false")
+                return tk_ = Token::False(loc);
+            return tk_ = Token::Ident(loc, word);
+        }
+        Error("unknown character '" + std::string(1, chr_) + "'");
     }
   }
 }
@@ -242,17 +364,23 @@ const Token &Lexer::Next()
 // -----------------------------------------------------------------------------
 void Lexer::NextChar()
 {
-  if (is_.eof()) {
-    chr_ = '\0';
-  } else {
-    if (chr_ == '\n') {
-      lineNo_++;
-      charNo_ = 1;
-    } else {
-      charNo_++;
+    if (is_.eof() || is_.peek() == EOF) 
+    {
+        chr_ = '\0';
+    } 
+    else 
+    {
+        if (chr_ == '\n') 
+        {
+            lineNo_++;
+            charNo_ = 1;
+        } 
+        else 
+        {
+            charNo_++;
+        }
+        chr_ = is_.get();
     }
-    chr_ = is_.get();
-  }
 }
 
 // -----------------------------------------------------------------------------

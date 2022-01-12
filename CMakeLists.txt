@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.0.0 FATAL_ERROR)
 project(imp)
 
 add_compile_options(
-    -std=c++17
+    /std:c++17
 )
 
 add_executable(imp
